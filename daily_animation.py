@@ -17,19 +17,21 @@ from itertools import product
 import sys 
 from time import perf_counter_ns
 from collections import Counter
-# import matplotlib as mpl
-# mpl.use('Agg')
-# usetex = False
-# if not usetex:mpl.rcParams.update({'mathtext.fontset': 'cm'})
-# mpl.rc('font', **{'family': 'serif',
-#        'serif': ['Times' if usetex else 'Times New Roman']})
-# mpl.rc('text', usetex=usetex)
-# mpl.rc('xtick', labelsize=10)
-# mpl.rc('ytick', labelsize=10)
-# %%
-# fdir = '../hmsao-processed'
-# files = glob(os.path.join(fdir, '*.nc'))
-# len(files)
+
+#needs to be commented out for running an interactive window
+import matplotlib as mpl
+mpl.use('Agg') #Fixes RuntimeError: main thread is not in main loop with Matplotlib and Flask.
+
+
+usetex = False
+if not usetex:mpl.rcParams.update({'mathtext.fontset': 'cm'})
+mpl.rc('font', **{'family': 'serif',
+       'serif': ['Times' if usetex else 'Times New Roman']})
+mpl.rc('text', usetex=usetex)
+mpl.rc('xtick', labelsize=10)
+mpl.rc('ytick', labelsize=10)
+mpl.rc('axes', labelsize=10)
+
 
 # %% functions
 
@@ -210,70 +212,3 @@ for pair in date_window_iter:
     tend = perf_counter_ns()
     print(f'Done. [{(tend-tstart)*1e-9:.3f} s]')
     sys.stdout.flush()
-# %%
-# fdir = '../hmsao-processed'
-# window = '6300'
-# date = '20250219'
-# files = glob(os.path.join(fdir, f'*{date}*{window}*.nc'))
-# files.sort()
-# print(len(files))
-
-
-# # %%
-# outdirroot = f'/plots/{window}
-# '
-# outdir = os.path.join(outdirroot, f'{date}')
-# if not os.path.exists(outdir): os.makedirs(outdir)
-# # os.makedirs(outdir, exist_ok=True, mode=777)
-# #%%
-# with xr.open_mfdataset(files) as ds:
-#     print('Opened dataset')
-#     txt_fname = os.path.join(outdirroot, f'filelist_{window}.txt')
-#     with open(txt_fname, 'w') as ofile:
-#         tslen = len(ds.tstamp.values)
-#         for tidx in tqdm(range(1, tslen),  total=tslen - 1, desc='Generating plots'):
-#             data = ds.intensity[tidx]
-#             fig, ax = plt.subplots(1, 2, figsize=(2002/300, 1100/300), dpi=300, gridspec_kw={'wspace': 0.5})
-#             vmin = np.nanpercentile(data.values, 1)
-#             vmax = np.nanpercentile(data.values, 99.5)
-#             time = datetime.fromtimestamp(ds.tstamp.values[tidx]).astimezone(pytz.utc)
-#             # cmap = 'gist_ncar_r'
-#             plot = data.plot(vmin=vmin, vmax=vmax, cmap='viridis', ax=ax[0])
-#             plot.colorbar.set_label('Intensity [ADU/s]')
-#             ax[0].axvline(int(window)/10, color='k', ls='--', lw=0.5)
-#             fig.suptitle(
-#                 f'{time:%Y-%m-%dT%H:%M:%S}', color='k')
-#             ax[0].set_title('Counts')
-#             data = ds.intensity[tidx] - ds.intensity[tidx - 1]
-#             vmin = np.nanpercentile(data.values, 1)
-#             vmax = np.nanpercentile(data.values, 99.5)
-#             plot = data.plot(vmin=vmin, vmax=vmax, cmap='bwr', ax=ax[1])
-#             plot.colorbar.set_label('Intensity Difference [ADU/s]')
-#             ax[1].axvline(int(window)/10, color='k', ls='--', lw=0.5)
-#             ax[1].set_title('Difference')
-
-#             outfname = os.path.join(outdirroot,f'{date}', f'{tidx}.png')
-#             # fig.subplots_adjust()
-#             fig.savefig(outfname, bbox_inches='tight')
-#             plt.close(fig)
-#             # plt.show()
-#             ofile.write(f"file '{outfname}'\n")
-#             ofile.write(f'duration {1/5}\n') # 15 fps
-#             # break
-
-# %%
-# ani_outdir = f'animations/'
-# if not os.path.exists(ani_outdir):
-#     os.makedirs(ani_outdir)
-# ani_outfname = os.path.join(ani_outdir, f'hmsao-{window}.mp4') #output filename
-
-# pixel_format = 'yuv420p'
-
-# txt_fname = 'filelist_6300.txt'
-
-# command = f'ffmpeg -f concat -safe 0 -i {txt_fname} -pix_fmt {pixel_format} {ani_outfname} -y'
-
-# subprocess.run(command, shell=True)
-
-
-# %%

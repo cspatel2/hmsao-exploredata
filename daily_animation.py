@@ -14,17 +14,19 @@ import numpy as np
 from datetime import datetime, timezone, timedelta
 import matplotlib.pyplot as plt
 from itertools import product
-import sys 
+import sys
 from time import perf_counter_ns
 from collections import Counter
 
-#needs to be commented out for running an interactive window
+# needs to be commented out for running an interactive window
 import matplotlib as mpl
-mpl.use('Agg') #Fixes RuntimeError: main thread is not in main loop with Matplotlib and Flask.
+# Fixes RuntimeError: main thread is not in main loop with Matplotlib and Flask.
+mpl.use('Agg')
 
 
 usetex = False
-if not usetex:mpl.rcParams.update({'mathtext.fontset': 'cm'})
+if not usetex:
+    mpl.rcParams.update({'mathtext.fontset': 'cm'})
 mpl.rc('font', **{'family': 'serif',
        'serif': ['Times' if usetex else 'Times New Roman']})
 mpl.rc('text', usetex=usetex)
@@ -46,6 +48,8 @@ def get_date_from_fname(fname: str) -> str:
     if isinstance(fname, list):
         return [get_date_from_fname(f) for f in fname]
     return fname.split('_')[-2]
+
+
 # %%
 parser = argparse.ArgumentParser(
     description='Creates animations of intensity and intensity difference for HMSAO L1A data.'
@@ -85,7 +89,7 @@ parser.add_argument(
     '--yyyymmdd',
     type=list_of_strings,
     required=False,
-    default = None,
+    default=None,
     nargs='?',
     help='dates to process (i.e. --yyyymmdd 20250101, 20250213,...).'
 )
@@ -97,6 +101,15 @@ parser.add_argument(
     default=False,
     nargs='?',
     help='If you want to rewrite an existing file, then True. Defaults to False.'
+)
+
+parser.add_argument(
+    '--only_animation',
+    type=bool,
+    required=False,
+    default=False,
+    nargs='?',
+    help='If you want to remake the animation with existing plots, then True. Defaults to False.'
 )
 # %%
 args = parser.parse_args()
@@ -120,7 +133,8 @@ if not files:
 all_valid_windows = get_window_from_fname(files)
 all_valid_windows = np.sort(list(set(all_valid_windows)))
 valid_windows = [str(w) for w in args.windows if w in all_valid_windows]
-print(f'Valid windows that will be processed ({len(valid_windows)}/{len(args.windows)}): {valid_windows}')
+print(
+    f'Valid windows that will be processed ({len(valid_windows)}/{len(args.windows)}): {valid_windows}')
 
 all_valid_dates = get_date_from_fname(files)
 all_valid_dates = np.sort(list(set(all_valid_dates)))
@@ -128,7 +142,8 @@ if args.yyyymmdd is None:
     valid_dates = all_valid_dates
 else:
     valid_dates = [str(d) for d in args.yyyymmdd if d in all_valid_dates]
-print(f'Valid dates that will be processed ({len(valid_dates)}/{len(args.yyyymmdd)}): {valid_dates}')
+print(
+    f'Valid dates that will be processed ({len(valid_dates)}/{len(args.yyyymmdd)}): {valid_dates}')
 
 # get all pairs of valid dates and windows
 date_window_iter = list(product(valid_dates, valid_windows))
@@ -140,75 +155,95 @@ for pair in date_window_iter:
     outdir_plots = os.path.join(args.dest, 'plots', f'{date}', f'{window}')
     os.makedirs(outdir_plots, exist_ok=True, mode=777)
 
-
     # check/make outdir for animations
     outdir_ani = os.path.join(args.dest, 'animations', f'{date}')
     os.makedirs(outdir_ani, exist_ok=True, mode=777)
     ani_outfname = os.path.join(outdir_ani, f'hmsao-{window}.mp4')
-    #if animation exists and not overwrite, skip (dont make new plots)
-    if os.path.exists(ani_outfname) and not args.overwrite:
+    # if animation exists and not overwrite, skip (dont make new plots)
+    if os.path.exists(ani_outfname) and not args.overwrite and not args.only_animation:
         print(f'{ani_outfname} exists. Skipping.')
         continue
 
     # filename for  .txt file inputfile to ffmpeg
     txt_fname = os.path.join(outdir_plots, f'filelist_{window}.txt')
 
-    # get valid .nc files for date and window
-    pfiles = glob(os.path.join(rootdir, f'*{date}*{window}*.nc'))
-    pfiles.sort()
+    if not args.only_animation:
+        # get valid .nc files for date and window
+        pfiles = glob(os.path.join(rootdir, f'*{date}*{window}*.nc'))
+        pfiles.sort()
 
-    with xr.open_mfdataset(pfiles) as ds:
-        print('Opened dataset')
-        tslen = len(ds.tstamp.values)
+        with xr.open_mfdataset(pfiles) as ds:
+            print('Opened dataset')
+            tslen = len(ds.tstamp.values)
 
-        #open .txt file
-        with open(txt_fname, 'w') as ofile:
-            for tidx in tqdm(range(1, tslen),  total=tslen - 1, desc=f'{datetime.strptime(date,'%Y%m%y'):%Y-%m-%d}/{window}'):
-                time = datetime.fromtimestamp(ds.tstamp.values[tidx]).astimezone(pytz.utc)
-                #create figure
-                fig, ax = plt.subplots(1, 2, figsize=(
-                    2002/300, 1100/300), dpi=300, gridspec_kw={'wspace': 0.5})
-                fig.suptitle(f'{time:%Y-%m-%dT%H:%M:%S}', color='k')
-                lw = 0.3
-                color = 'k'
-                ls = '--'
+            # open .txt file
+            with open(txt_fname, 'w') as ofile:
+                for tidx in tqdm(range(1, tslen),  total=tslen - 1, desc=f'{datetime.strptime(date, '%Y%m%y'):%Y-%m-%d}/{window}'):
+                    time = datetime.fromtimestamp(
+                        ds.tstamp.values[tidx]).astimezone(pytz.utc)
+                    # create figure
+                    fig, ax = plt.subplots(1, 2, figsize=(
+                        2002/300, 1100/300), dpi=300, gridspec_kw={'wspace': 0.3})
+                    fig.suptitle(f'{time:%Y-%m-%dT%H:%M:%S}', color='k')
+                    lw = 0.3
+                    color = 'k'
+                    ls = '--'
 
-                #left intensity plot
-                data = ds.intensity[tidx]
-                vmin = np.nanpercentile(data.values, 1)
-                vmax = np.nanpercentile(data.values, 99.5)
-                plot = data.plot(vmin=vmin, vmax=vmax,cmap='viridis', ax=ax[0])
-                ax[0].axvline(int(window)/10, color=color, ls=ls, lw=lw)
-                plot.colorbar.set_label('Intensity [ADU/s]')
-                ax[0].set_title('Counts')
+                    # left intensity plot
+                    data = ds.intensity[tidx]
+                    vmin = np.nanpercentile(data.values, 1)
+                    vmax = np.nanpercentile(data.values, 99.5)
+                    plot = data.plot(vmin=vmin, vmax=vmax,
+                                     cmap='viridis', ax=ax[0])
+                    ax[0].axvline(int(window)/10, color=color, ls=ls, lw=lw)
+                    plot.colorbar.set_label('Intensity [ADU/s]')
+                    ax[0].set_title('Counts')
 
-                #right intensity difference plot
-                data = ds.intensity[tidx] - ds.intensity[tidx - 1]
-                vmin = np.nanpercentile(data.values, 1)
-                vmax = np.nanpercentile(data.values, 99.5)
-                plot = data.plot(vmin=vmin, vmax=vmax, cmap='bwr', ax=ax[1])
-                ax[1].axvline(int(window)/10, color=color, ls=ls, lw=lw)
-                plot.colorbar.set_label('Intensity Difference [ADU/s]')
-                ax[1].set_title('Difference')
-                
-                #save figure
-                outfname = os.path.join(outdir_plots, f'{tidx}.png')
-                fig.savefig(outfname, bbox_inches='tight')
-                plt.close(fig)
-                # plt.show()
+                    # right intensity difference plot
+                    data = ds.intensity[tidx] - ds.intensity[tidx - 1]
+                    vmin = np.nanpercentile(data.values, 1)
+                    vmax = np.nanpercentile(data.values, 99.5)
+                    plot = data.plot(vmin=vmin, vmax=vmax,
+                                     cmap='bwr', ax=ax[1])
+                    ax[1].axvline(int(window)/10, color=color, ls=ls, lw=lw)
+                    plot.colorbar.set_label('Intensity Difference [ADU/s]')
+                    ax[1].set_title('Difference')
 
-                #write to .txt file
-                ofile.write(f"file '{outfname}'\n")
-                ofile.write(f'duration {1/5}\n') # 15 fps
+                    # save figure
+                    outfname = os.path.join(outdir_plots, f'{tidx}.png')
+                    fig.savefig(outfname, bbox_inches='tight')
+                    plt.close(fig)
+                    # plt.show()
+
+                    # write to .txt file
+                    fname_towrite = os.path.relpath(outfname, outdir_plots)
+                    ofile.write(f"file '{fname_towrite}'\n")
+                    ofile.write(f'duration {1/5}\n')  # 15 fps
+    else: print('Only animation, no new plots made.')
 
     # create animation
     print('Creating animation...')
     sys.stdout.flush()
     tstart = perf_counter_ns()
-                
     pixel_format = 'yuv420p'
-    command = f'ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i {txt_fname} -pix_fmt {pixel_format} {ani_outfname} -y'
-    subprocess.run(command, shell=True)
+    command = [
+        'ffmpeg',
+        '-hide_banner',  # make ffmpeg less verbose
+        '-loglevel', 'error',  # make ffmpeg less verbose
+        '-f', 'concat',  # input format
+        '-safe', '0',  # allow unsafe file names
+        '-i', txt_fname,  # input file
+        # asserts height and wideth are even numbers as required by the pixel format
+        '-vf', '"crop=trunc(iw/2)*2:trunc(ih/2)*2"',
+        '-pix_fmt', pixel_format,  # pixel format
+        ani_outfname,  # output file
+        '-y'  # overwrite output file if it exists
+    ]
+    command_str = ' '.join(command)
+    subprocess.run(command_str, shell=True)
     tend = perf_counter_ns()
     print(f'Done. [{(tend-tstart)*1e-9:.3f} s]')
     sys.stdout.flush()
+# %%
+
+# %%
